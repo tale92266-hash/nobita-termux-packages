@@ -13,6 +13,8 @@ jobs:
           ref: infra-improvs
           fetch-depth: 0
 
+      - name: Update Docker image
+        run: docker pull ghcr.io/termux/package-builder:latest
       - name: Build bootstrap
         run: |
           chmod +x scripts/*.sh
