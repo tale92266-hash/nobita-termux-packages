@@ -13,6 +13,18 @@ jobs:
           ref: infra-improvs
           fetch-depth: 0
 
+      - name: Check NDK
+        run: |
+          docker run --rm ghcr.io/termux/package-builder:latest bash -lc '
+            echo "ANDROID_NDK_ROOT=$ANDROID_NDK_ROOT"
+            echo "NDK=$NDK"
+            echo "ANDROID_HOME=$ANDROID_HOME"
+            echo "Available NDK directories:"
+            ls -la "$ANDROID_HOME/ndk" 2>/dev/null || true
+            echo "Searching for Android NDK:"
+            find /opt /usr/local /home -maxdepth 5 -type d -name "android-ndk*" 2>/dev/null | head -20
+          '
+
       - name: Build bootstrap
         run: |
           chmod +x scripts/*.sh
