@@ -1,0 +1,24 @@
+name: Build NobiTerm Bootstrap
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: infra-improvs
+          fetch-depth: 0
+
+      - name: Build bootstrap
+        run: |
+          chmod +x scripts/*.sh
+          ./scripts/run-docker.sh ./scripts/build-bootstraps.sh --architectures aarch64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nobiterm-bootstrap-aarch64
+          path: bootstrap-aarch64.zip
