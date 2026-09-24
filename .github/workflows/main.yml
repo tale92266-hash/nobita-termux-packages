@@ -8,7 +8,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           ref: infra-improvs
           fetch-depth: 0
@@ -17,27 +18,39 @@ jobs:
         run: |
           docker build -t nobita-package-builder ./scripts
 
-      - name: Verify package builder
+      - name: Verify image
         run: |
           docker image inspect nobita-package-builder
           docker run --rm nobita-package-builder bash -lc '
             echo "ANDROID_HOME=$ANDROID_HOME"
             echo "NDK=$NDK"
-            ls -ld "$NDK" || true
+            test -d "$NDK"
           '
+
+      - name: Start builder container
+        run: |
+          docker run -d \
+            --name nobita-builder \
+            --volume "$GITHUB_WORKSPACE:/home/builder/termux-packages" \
+            --workdir /home/builder/termux-packages \
+            nobita-package-builder \
+            tail -f /dev/null
 
       - name: Build bootstrap
         run: |
-          chmod +x scripts/*.sh
-          TERMUX_BUILDER_IMAGE_NAME=nobita-package-builder \
-          CONTAINER_NAME=nobita-package-builder \
-          ./scripts/run-docker.sh ./scripts/build-bootstraps.sh --architectures aarch64
+          docker exec nobita-builder \
+            bash -lc '
+              chmod +x scripts/*.sh
+              ./scripts/build-bootstraps.sh --architectures aarch64
+            '
 
       - name: Check bootstrap
         run: |
           ls -lh bootstrap-aarch64.zip
+          test -f bootstrap-aarch64.zip
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload bootstrap
+        uses: actions/upload-artifact@v4
         with:
           name: nobiterm-bootstrap-aarch64
           path: bootstrap-aarch64.zip
