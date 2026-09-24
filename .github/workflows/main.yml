@@ -16,16 +16,7 @@ jobs:
 
       - name: Build package builder image
         run: |
-          docker build -t nobita-package-builder ./scripts
-
-      - name: Verify image
-        run: |
-          docker image inspect nobita-package-builder
-          docker run --rm nobita-package-builder bash -lc '
-            echo "ANDROID_HOME=$ANDROID_HOME"
-            echo "NDK=$NDK"
-            test -d "$NDK"
-          '
+          docker build --no-cache -t nobita-package-builder ./scripts
 
       - name: Start builder container
         run: |
@@ -36,13 +27,39 @@ jobs:
             nobita-package-builder \
             tail -f /dev/null
 
+      - name: Verify Android SDK and NDK
+        run: |
+          docker exec nobita-builder bash -lc '
+            export HOME=/home/builder
+            source scripts/properties.sh
+
+            echo "ANDROID_HOME=$ANDROID_HOME"
+            echo "NDK=$NDK"
+            echo "TERMUX_NDK_VERSION=$TERMUX_NDK_VERSION"
+
+            test -d "$ANDROID_HOME"
+            test -d "$NDK"
+
+            echo "Android SDK:"
+            ls -ld "$ANDROID_HOME"
+
+            echo "Android NDK:"
+            ls -ld "$NDK"
+          '
+
       - name: Build bootstrap
         run: |
-          docker exec nobita-builder \
-            bash -lc '
-              chmod +x scripts/*.sh
-              ./scripts/build-bootstraps.sh --architectures aarch64
-            '
+          docker exec nobita-builder bash -lc '
+            export HOME=/home/builder
+            export TERMUX_ON_DEVICE_BUILD=false
+            source scripts/properties.sh
+
+            echo "Building with:"
+            echo "ANDROID_HOME=$ANDROID_HOME"
+            echo "NDK=$NDK"
+
+            ./scripts/build-bootstraps.sh --architectures aarch64
+          '
 
       - name: Check bootstrap
         run: |
