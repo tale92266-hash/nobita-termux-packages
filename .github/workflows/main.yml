@@ -17,13 +17,25 @@ jobs:
         run: |
           docker build -t nobita-package-builder ./scripts
 
+      - name: Verify package builder
+        run: |
+          docker image inspect nobita-package-builder
+          docker run --rm nobita-package-builder bash -lc '
+            echo "ANDROID_HOME=$ANDROID_HOME"
+            echo "NDK=$NDK"
+            ls -ld "$NDK" || true
+          '
+
       - name: Build bootstrap
-        env:
-          TERMUX_BUILDER_IMAGE_NAME: nobita-package-builder
-          CONTAINER_NAME: nobita-package-builder
         run: |
           chmod +x scripts/*.sh
+          TERMUX_BUILDER_IMAGE_NAME=nobita-package-builder \
+          CONTAINER_NAME=nobita-package-builder \
           ./scripts/run-docker.sh ./scripts/build-bootstraps.sh --architectures aarch64
+
+      - name: Check bootstrap
+        run: |
+          ls -lh bootstrap-aarch64.zip
 
       - uses: actions/upload-artifact@v4
         with:
