@@ -1,0 +1,73 @@
+name: Build NobiTerm Bootstrap
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: infra-improvs
+          fetch-depth: 0
+
+      - name: Build package builder image
+        run: |
+          docker build --no-cache -t nobita-package-builder ./scripts
+
+      - name: Start builder container
+        run: |
+          docker run -d \
+            --name nobita-builder \
+            --volume "$GITHUB_WORKSPACE:/home/builder/termux-packages" \
+            --workdir /home/builder/termux-packages \
+            nobita-package-builder \
+            tail -f /dev/null
+
+      - name: Verify Android SDK and NDK
+        run: |
+          docker exec nobita-builder bash -lc '
+            export HOME=/home/builder
+            source scripts/properties.sh
+
+            echo "ANDROID_HOME=$ANDROID_HOME"
+            echo "NDK=$NDK"
+            echo "TERMUX_NDK_VERSION=$TERMUX_NDK_VERSION"
+
+            test -d "$ANDROID_HOME"
+            test -d "$NDK"
+
+            echo "Android SDK:"
+            ls -ld "$ANDROID_HOME"
+
+            echo "Android NDK:"
+            ls -ld "$NDK"
+          '
+
+      - name: Build bootstrap
+        run: |
+          docker exec nobita-builder bash -lc '
+            export HOME=/home/builder
+            export TERMUX_ON_DEVICE_BUILD=false
+            source scripts/properties.sh
+
+            echo "Building with:"
+            echo "ANDROID_HOME=$ANDROID_HOME"
+            echo "NDK=$NDK"
+
+            ./scripts/build-bootstraps.sh --architectures aarch64
+          '
+
+      - name: Check bootstrap
+        run: |
+          ls -lh bootstrap-aarch64.zip
+          test -f bootstrap-aarch64.zip
+
+      - name: Upload bootstrap
+        uses: actions/upload-artifact@v4
+        with:
+          name: nobiterm-bootstrap-aarch64
+          path: bootstrap-aarch64.zip
